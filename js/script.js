@@ -108,7 +108,7 @@ function init() {
 
     ///////////////////////////*********************************//////////////////////////////
 
-    sun = new THREE.Mesh(new THREE.SphereBufferGeometry(50 ,50,50), new THREE.MeshBasicMaterial({map:sunTexture,}));
+    sun = new THREE.Mesh(new THREE.SphereBufferGeometry(50 ,50,50), new THREE.MeshBasicMaterial({map:sunTexture}));
     // sun.position();
     scene.add(sun);
 
