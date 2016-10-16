@@ -1,222 +1,177 @@
-$(function(){
-
-var container;
-var spotLight, stats;
-var camera, cameraTarget, scene, renderer, controls;
-var mouseX = 0, mouseY = 0;
-var windowHalfX = window.innerWidth / 2;
-var windowHalfY = window.innerHeight / 2;
-
-var sun;
-
-var NEAR = 10, FAR = 5000;
-var SHADOW_MAP_WIDTH = 2048, SHADOW_MAP_HEIGHT = 1024;
-
-var  maxParticles = 7000,
-        particles = [],
-        particleMaterial,
-        particleCloud;
-
-var texture;
-var frameRate = 10;
-var curTime;
-var oldTime = Date.now();
-var interval = 1000/frameRate;
-var delta;
-
-var sizeTracker = 12;
-var direction = .2;
-
-//TEXTURES
-var sunTexture = new THREE.TextureLoader().load("/textures/sun.jpg");
+/**
+ * Created by Alex on 16.10.2016.
+ */
+$(function () {
+/**
+ * @todo - перевірку чи підтримує браузер WebGL
+ * @todo - переробити матеріал сонця на THREE.MeshPhongMaterial({map: ,emissive: })
+ * @todo - розібратися з тінями планет
+ * */
 
 
+    var scene, camera, render, container;
+    var W = parseInt(window.innerWidth);
+    var H = parseInt(window.innerHeight);
 
-// EVENTS
-document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 
-init();
-animate();
+    container = document.createElement('div');
+    document.body.appendChild(container);
 
-function init() {
-    container = document.createElement( 'div' );
-    document.body.appendChild( container );
-
-//  CAMERA
-    camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 5000 );
-    camera.position.z = 1000;
-
-    camera.shadowCameraVisible = true;
-    camera.shadowMapWidth = 1028;
-    camera.shadowMapHeight = 1028;
-
-    cameraTarget = new THREE.Vector3( 0, -0.25, 0 );
-
-// SCENE
+    camera = new THREE.PerspectiveCamera(45, W/H, 1, 1000000);
+    camera.position.z = 20300;
+    camera.rotation.z = -Math.PI/20;
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog( 0x59472b, 1000, FAR );
 
+//Light
 
-// LIGHTS
-        spotLight = new THREE.SpotLight( 0xffffff, 1, 0, Math.PI / 2 );
-        spotLight.position.set( 0, 0, 2000 );
-        spotLight.target.position.set( 0, 0, 0 );
-        //spotLight.intensity = 10;
-        spotLight.angle = 45;
+    var light = new THREE.PointLight(0xffffff, 1.4, 30000);
+    light.position.set(0, 0, 0);
+    light.castShadow = true;
+    light.shadowMapWidth = 2048;
+    light.shadowMapHeight = 2048;
+    scene.add(light);
+//Code...
 
-        spotLight.castShadow = true;
-        spotLight.shadowCameraVisible = true;
-        spotLight.shadow = new THREE.LightShadow( new THREE.PerspectiveCamera( 50, 1, 1200, 2500 ) );
-        spotLight.shadow.bias = 0.0001;
-        spotLight.shadowDarkness = .5;
+    var ambient = new THREE.AmbientLight(0xffffff);
+    // scene.add(ambient);
+//Stars
+    var stars = addStars(25000, 0.3);
+    stars = new THREE.Points(stars.starsGeometry,stars.starsMaterial);
+    stars.scale.set(50, 50, 50);
+    scene.add(stars);
 
-        spotLight.shadow.mapSize.width = SHADOW_MAP_WIDTH;
-        spotLight.shadow.mapSize.height = SHADOW_MAP_HEIGHT;
+    var stars2 = addStars(5000, 1);
+    stars2 = new THREE.Points(stars2.starsGeometry,stars2.starsMaterial);
+    stars2.scale.set(5, 5, 5);
+    scene.add(stars2);
 
-        scene.add(spotLight);
-
-//PARTICLES
-//     particles = new THREE.Geometry();
-//     for (var i = 0; i < maxParticles; i++) {
-//         var particle = new THREE.Vector4(random(-4000, 4000), random(-2000, 2000), random(-3000, 20));
-//
-//         particles.vertices.push(particle);
-//     }
-//     texture = THREE.ImageUtils.loadTexture("textures/star.png");
-//
-//     particleMaterial = new THREE.PointCloudMaterial({ size: 15, map: texture, transparent: true, opacity: 1, blending: "AdditiveBlending", color: 0xeeeeee });
-//
-//     particleCloud = new THREE.PointCloud(particles, particleMaterial);
-//     particleCloud.sortParticles = true;
-//
-//     scene.add( particleCloud );
-
-// STATS
-    stats = new Stats();
-    container.appendChild( stats.dom );
-
-// POSTPROCESSING
-    //var composer = new THREE.EffectComposer( renderer );
-    //composer.addPass( new THREE.RenderPass( scene, camera ) );
-    //var effect = new THREE.ShaderPass( THREE.DotScreenShader );
-    //effect.uniforms[ 'scale' ].value = 4;
-    //composer.addPass( effect );
-    //var effect = new THREE.ShaderPass( THREE.RGBShiftShader );
-    //effect.uniforms[ 'amount' ].value = 0.0015;
-    //effect.renderToScreen = true;
-    //composer.addPass( effect );
-
-    ///////////////////////////*********************************//////////////////////////////
-
-    sun = new THREE.Mesh(new THREE.SphereBufferGeometry(50 ,50,50), new THREE.MeshBasicMaterial({map:sunTexture}));
-    // sun.position();
+//Sun
+    //     var sunTexture = new THREE.ImageUtils.loadTexture("/textures/sun.png");
+    var sunTexture = new THREE.TextureLoader().load("/textures/sun.png");
+    sunTexture.anisotropy = 8;
+    var sun = new THREE.Mesh(new THREE.SphereGeometry(2300,80,80),
+                             new THREE.MeshBasicMaterial({map: sunTexture}));
+                             // new THREE.MeshPhongMaterial({map: sunTexture, emissive: 0xffffff}));
     scene.add(sun);
 
+//Mercury
+    var mercury = addPlanet("mercury",70,20);
+    scene.add(mercury);
+
+//Venus
+    var venus = addPlanet("venus",90,20);
+    scene.add(venus);
+
+//Earth
+    var earth = addPlanet("earth",100,20);
+    scene.add(earth);
+
+//Mars
+    var mars = addPlanet("mars",80,20);
+    scene.add(mars);
+
+//Jupiter
+    var jupiter = addPlanet("jupiter",350,20);
+    scene.add(jupiter);
+
+//Saturn
+    var saturn = addPlanet("saturn",230,20);
+    scene.add(saturn);
+
+//Uranus
+    var uranus = addPlanet("uranus",170,40);
+    scene.add(uranus);
+
+//Neptune
+    var neptune = addPlanet("neptune",168,20);
+    scene.add(neptune);
+
+//Render
+    render = new THREE.WebGLRenderer({antialias:true});
+    render.setSize(W,H);
+    container.appendChild(render.domElement);
+    var t = 0;
+    var y = 0;
+    animate();
 
 
+    document.addEventListener('mousemove',function (event) {
+        y = parseInt(event.offsetY);
+    }, false );
 
+    function addPlanet(planetName, radius, segment) {
+        var Texture = new THREE.TextureLoader().load("/textures/"+planetName+".jpg");
+        Texture.anisotropy = 8;
+        var planet = new THREE.Mesh(new THREE.SphereGeometry(radius,segment,segment),
+                                    new THREE.MeshBasicMaterial({map: Texture}));
+        planet.castShadow = true;
+        return  planet;
 
-
-    ///////////////////////////*********************************//////////////////////////////
-
-// RENDERER
-    renderer = new THREE.WebGLRenderer( { antialias: true } );
-    renderer.setClearColor( scene.fog.color );
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    container.appendChild( renderer.domElement );
-
-    renderer.autoClear = false;
-
-    renderer.shadowMap.enabled = true;
-    //renderer.shadowMap.type = THREE.PCFShadowMap;
-
-    container.appendChild( renderer.domElement );
-
-
-// CONTROLS
-    var controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.target.set( 0, 0, 0 );
-    controls.update();
-    controls.addEventListener('change', render);
-
-
-    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-
-    window.addEventListener( 'resize', onWindowResize, false );
-}
-
-// random helper
-function random( min, max) {
-
-    if ( isNaN(max) ) {
-        max = min;
-        min = 0;
     }
 
-    return Math.random() * ( max - min ) + min;
-}
+    function addStars(qty, opct) {
+        var starsGeometry = new THREE.Geometry();
+        var starsMaterial = new THREE.PointsMaterial({color: 0xbbbbbb, size:1, opacity:opct, sizeAttenuation:false});
 
-function onWindowResize() {
-    windowHalfX = window.innerWidth / 2;
-    windowHalfY = window.innerHeight / 2;
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize( window.innerWidth, window.innerHeight );
-}
+        for(var i=0; i<qty; i++){
+            var vertex = new THREE.Vector3();
+            vertex.x = Math.random()*2-1;
+            vertex.y = Math.random()*2-1;
+            vertex.z = Math.random()*2-1;
+            vertex.multiplyScalar(camera.position.z - 200);
+            starsGeometry.vertices.push(vertex);
+        }
 
-
-function onDocumentMouseMove( event ) {
-    mouseX = ( event.clientX - windowHalfX ) * 3;
-    mouseY = ( event.clientY - windowHalfY ) * 3;
-}
-
-// UPDATE POINT CLOUD ANIMATION
-function updateSize(){
-
-    sizeTracker += direction;
-    if(sizeTracker >= 16)
-        direction = -0.2;
-    if(sizeTracker < 12)
-        direction = 0.2;
-
-    //direction *= (((sizeTracker % 100) == 0) ? -1 : 1);
-    // particleMaterial.size = sizeTracker;
-    // particles.vertices[123].x += 3;
-    //console.log(particleMaterial);
-}
-
-// ANIMATE SPEED
-function refRate(){
-
-    curTime = Date.now();
-    delta = curTime - oldTime;
-
-    if(delta > interval){
-        oldTime = curTime - (delta % interval);
-        updateSize();
+       return {
+            starsGeometry: starsGeometry,
+            starsMaterial: starsMaterial
+        }
     }
-}
 
-// ANIMATION SCENE
-function animate() {
-    requestAnimationFrame( animate );
-    render();
-    stats.update();
-}
+    function animate() {
+        requestAnimationFrame(animate);
 
-// RENDER SCENE
-function render() {
-    refRate();
-    // logo.rotation.y += .003*Math.PI;
+        sun.rotation.y += 0.001;
 
-    if((camera.position.x + ( mouseX - camera.position.x ) * .002) < 300 && (camera.position.x + ( mouseX - camera.position.x ) * .002) > -300)
-        camera.position.x += ( mouseX - camera.position.x ) * (Math.abs(mouseX)/1000000);
+        mercury.position.x = Math.sin(t*0.3)*4500;
+        mercury.position.z = Math.cos(t*0.3)*4500;
+        mercury.rotation.y += 0.01;
 
-    if((camera.position.y + (  - mouseY - camera.position.y ) * .002) < 300 && (camera.position.y + (  - mouseY - camera.position.y ) * .002) > -300)
-        camera.position.y += ( - mouseY - camera.position.y ) * (Math.abs(mouseY)/500000);
+        venus.position.x = Math.sin(t*0.2)*5500;
+        venus.position.z = Math.cos(t*0.2)*5500;
+        venus.rotation.y += 0.01;
 
-    camera.lookAt( cameraTarget ); //scene.position
-    renderer.render( scene, camera );
-}
+        earth.position.x = Math.sin(t*0.1)*7500;
+        earth.position.z = Math.cos(t*0.1)*7500;
+        earth.rotation.y += 0.01;
+
+        mars.position.x = Math.sin(t*0.08)*8500;
+        mars.position.z = Math.cos(t*0.08)*8500;
+        mars.rotation.y += 0.01;
+
+        jupiter.position.x = Math.sin(t*0.06)*(-10700);
+        jupiter.position.z = Math.cos(t*0.06)*(-10700);
+        jupiter.rotation.y += 0.01;
+
+        saturn.position.x = Math.sin(t*0.04)*12000;
+        saturn.position.z = Math.cos(t*0.04)*12000;
+        saturn.rotation.y += 0.01;
+
+        uranus.position.x = Math.sin(t*0.02)*13500;
+        uranus.position.z = Math.cos(t*0.02)*13500;
+        uranus.rotation.y += 0.01;
+
+        neptune.position.x = Math.sin(t*0.01)*15000;
+        neptune.position.z = Math.cos(t*0.01)*15000;
+        neptune.rotation.y += 0.01;
+
+        camera.position.y = y * 5;
+        // camera.position.z = mercury.position.z + 200;
+        // camera.lookAt(mercury.position);
+
+        t += Math.PI/180*2;
+
+        render.render(scene, camera);
+    }
+
 });
